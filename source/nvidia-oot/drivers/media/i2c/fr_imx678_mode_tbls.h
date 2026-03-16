@@ -80,6 +80,16 @@
 
 #define GAIN_PGC_FIDMD		0x3400
 
+/* ClearHDR / Gradation compression registers */
+#define CCMP2_EXP_LOW		0x36E4
+#define CCMP2_EXP_MID		0x36E5
+#define CCMP2_EXP_HIGH		0x36E6
+#define CCMP1_EXP_LOW		0x36E8
+#define CCMP1_EXP_MID		0x36E9
+#define CCMP1_EXP_HIGH		0x36EA
+#define ACMP2_EXP		0x36EC
+#define ACMP1_EXP		0x36EE
+
 /* Resolutions of implemented frame modes */
 #define IMX678_DEFAULT_WIDTH		3856
 #define IMX678_DEFAULT_HEIGHT		2180
@@ -627,6 +637,33 @@ static const imx678_reg mode_dol_binning_hdr[] = {
 	{IMX678_TABLE_END, 0x0000}
 };
 
+/* ClearHDR 4K all-pixel (3856x2180 @ 30fps, 12-bit) */
+static const imx678_reg mode_clearhdr_4k[] = {
+
+	{WINMODE,		0x00},
+	{ADDMODE,		0x00},
+	{WDMODE,		0x10},	/* ClearHDR */
+	{VCMODE,		0x01},
+
+	{IMX678_TABLE_WAIT_MS, IMX678_WAIT_MS},
+	{IMX678_TABLE_END, 0x0000}
+};
+
+/* ClearHDR 1080p binning (1928x1090 @ 60fps, 12-bit) */
+static const imx678_reg mode_clearhdr_binning[] = {
+
+	{WINMODE,		0x00},
+	{ADDMODE,		0x01},	/* 2x2 binning */
+	{WDMODE,		0x10},	/* ClearHDR */
+	{VCMODE,		0x01},
+
+	{ADBIT,			0x00},
+	{MDBIT,			0x01},
+
+	{IMX678_TABLE_WAIT_MS, IMX678_WAIT_MS},
+	{IMX678_TABLE_END, 0x0000}
+};
+
 static const imx678_reg mode_enable_pattern_generator[] = {
 
 	{BLKLEVEL_LOW,		0x00},
@@ -658,6 +695,9 @@ enum {
 	IMX678_MODE_H2V2_BINNING,
 	IMX678_MODE_DOL_HDR,
 	IMX678_MODE_DOL_BINNING,
+
+	IMX678_MODE_CLEARHDR_4K,
+	IMX678_MODE_CLEARHDR_BINNING,
 
 	IMX678_10BIT_MODE,
 	IMX678_12BIT_MODE,
@@ -693,6 +733,8 @@ static const imx678_reg *mode_table[] = {
 	[IMX678_MODE_DOL_HDR] = mode_dol_hdr,
 	[IMX678_MODE_DOL_BINNING] = mode_dol_binning_hdr,
 
+	[IMX678_MODE_CLEARHDR_4K] = mode_clearhdr_4k,
+	[IMX678_MODE_CLEARHDR_BINNING] = mode_clearhdr_binning,
 
 	[IMX678_EN_PATTERN_GEN] = mode_enable_pattern_generator,
 	[IMX678_DIS_PATTERN_GEN] = mode_disable_pattern_generator,
@@ -771,6 +813,21 @@ static const struct camera_common_frmfmt imx678_frmfmt[] = {
 		.num_framerates = 1,
 		.hdr_en = true,
 		.mode = IMX678_MODE_DOL_BINNING
+	},
+	{
+		.size = {IMX678_DEFAULT_WIDTH, IMX678_DEFAULT_HEIGHT},
+		.framerates = imx678_30fps,
+		.num_framerates = 1,
+		.hdr_en = false,
+		.mode = IMX678_MODE_CLEARHDR_4K
+	},
+	{
+		.size = {IMX678_MODE_BINNING_H2V2_WIDTH,
+						IMX678_MODE_BINNING_H2V2_HEIGHT},
+		.framerates = imx678_60fps,
+		.num_framerates = 1,
+		.hdr_en = false,
+		.mode = IMX678_MODE_CLEARHDR_BINNING
 	}
 };
 

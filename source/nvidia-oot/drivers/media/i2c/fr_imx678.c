@@ -133,6 +133,18 @@ static bool imx678_is_binning_mode(struct camera_common_data *s_data)
 	switch (s_data->mode) {
 	case IMX678_MODE_H2V2_BINNING:
 	case IMX678_MODE_DOL_BINNING:
+	case IMX678_MODE_CLEARHDR_BINNING:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool imx678_is_clearhdr_mode(struct camera_common_data *s_data)
+{
+	switch (s_data->mode) {
+	case IMX678_MODE_CLEARHDR_4K:
+	case IMX678_MODE_CLEARHDR_BINNING:
 		return true;
 	default:
 		return false;
@@ -1542,6 +1554,14 @@ static int imx678_check_unsupported_mode(struct camera_common_data *s_data,
 			__func__);
 	}
 
+	if (mf->code == MEDIA_BUS_FMT_SRGGB10_1X10
+				&& imx678_is_clearhdr_mode(s_data)) {
+		unsupported_mode = true;
+		dev_warn(dev,
+			"%s: ClearHDR requires RAW12, switching to default\n",
+			__func__);
+	}
+
 	if (unsupported_mode) {
 		mf->width = s_data->frmfmt[s_data->def_mode].size.width;
 		mf->height = s_data->frmfmt[s_data->def_mode].size.height;
@@ -1624,6 +1644,29 @@ static int imx678_set_mode(struct tegracam_device *tc_dev)
 		dev_err(dev, "%s: unable to write table for mode %u\n", __func__,
 								s_data->mode);
 		return err;
+	}
+
+	/* Apply ClearHDR gradation compression curve */
+	if (imx678_is_clearhdr_mode(s_data)) {
+		err = imx678_write_buffered_reg(s_data, CCMP1_EXP_LOW, 3, 500);
+		err |= imx678_write_reg(s_data, ACMP1_EXP, 0x02);
+		err |= imx678_write_buffered_reg(s_data, CCMP2_EXP_LOW, 3,
+									11500);
+		err |= imx678_write_reg(s_data, ACMP2_EXP, 0x06);
+		if (err) {
+			dev_err(dev,
+				"%s: unable to set ClearHDR gradation curve\n",
+				__func__);
+			return err;
+		}
+		dev_dbg(dev, "%s: ClearHDR gradation curve applied\n",
+								__func__);
+	} else {
+		/* Clear gradation compression for linear/DOL modes */
+		imx678_write_buffered_reg(s_data, CCMP1_EXP_LOW, 3, 0);
+		imx678_write_reg(s_data, ACMP1_EXP, 0x00);
+		imx678_write_buffered_reg(s_data, CCMP2_EXP_LOW, 3, 0);
+		imx678_write_reg(s_data, ACMP2_EXP, 0x00);
 	}
 
 	err = imx678_set_operation_mode(tc_dev, fr_get_v4l2_ctrl_value(tc_dev,
